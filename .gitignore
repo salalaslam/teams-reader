@@ -1,0 +1,21 @@
+# Local account configuration and deployment notes
+account.json
+*.local.json
+*.local.md
+.env
+.env.*
+!.env.example
+keys.txt
+
+# Microsoft 365 authentication caches: never commit these
+.cli-m365*
+.m365*
+
+# Dependencies and generated files
+node_modules/
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# Optional local message exports
+exports/

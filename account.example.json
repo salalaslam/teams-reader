@@ -1,0 +1,4 @@
+{
+  "appId": "YOUR_ENTRA_APPLICATION_CLIENT_ID",
+  "tenant": "YOUR_ENTRA_TENANT_ID"
+}
