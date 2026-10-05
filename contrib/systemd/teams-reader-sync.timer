@@ -1,0 +1,10 @@
+[Unit]
+Description=Run teams-reader sync every two minutes
+
+[Timer]
+OnBootSec=1min
+OnUnitInactiveSec=2min
+Unit=teams-reader-sync.service
+
+[Install]
+WantedBy=timers.target

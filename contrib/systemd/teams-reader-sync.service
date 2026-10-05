@@ -1,0 +1,10 @@
+[Unit]
+Description=Archive new Microsoft Teams chat messages and send notifications
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Adjust the path if teams-reader is installed elsewhere.
+ExecStart=%h/.local/bin/teams-reader sync --quiet --format md
+TimeoutStartSec=10min

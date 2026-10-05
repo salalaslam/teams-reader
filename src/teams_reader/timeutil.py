@@ -7,6 +7,8 @@ from datetime import datetime, timedelta, timezone
 _RELATIVE = re.compile(r'^\s*(\d+)\s*([mhdw])\s*$', re.IGNORECASE)
 _UNITS = {'m': 'minutes', 'h': 'hours', 'd': 'days', 'w': 'weeks'}
 _FRACTION = re.compile(r'\.(\d+)')
+_DURATION = re.compile(r'^\s*(\d+(?:\.\d+)?)\s*([smhd])\s*$', re.IGNORECASE)
+_DURATION_UNITS = {'s': 'seconds', 'm': 'minutes', 'h': 'hours', 'd': 'days'}
 
 
 def parse_since(value: str | None, now: datetime | None = None) -> datetime | None:
@@ -28,6 +30,15 @@ def parse_since(value: str | None, now: datetime | None = None) -> datetime | No
             f'invalid --since value {value!r}: use e.g. 7d, 12h, 30m, 2w, '
             '2026-10-01 or 2026-10-01T09:00:00Z') from None
     return parsed
+
+
+def parse_duration(value: str) -> timedelta:
+    """Parse ``90s``/``30m``/``8h``/``2d`` into a timedelta."""
+    match = _DURATION.match(value)
+    if not match:
+        raise ValueError(f'invalid duration {value!r}: use e.g. 90s, 30m, 8h or 2d')
+    amount, unit = float(match.group(1)), match.group(2).lower()
+    return timedelta(**{_DURATION_UNITS[unit]: amount})
 
 
 def parse_time(value: str) -> datetime:

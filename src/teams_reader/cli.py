@@ -5,8 +5,8 @@ import argparse
 import json
 import sys
 
-from . import __version__, m365, reader, render, search
-from .timeutil import parse_since
+from . import __version__, m365, reader, render, search, sync
+from .timeutil import parse_duration, parse_since
 
 
 FORMATS = ('json', 'md')
@@ -87,8 +87,58 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument('--no-channels', dest='channels', action='store_false',
                    help='leave out team channel messages')
 
+    p = command('sync', 'archive new chat messages locally and send ntfy notifications '
+                '(run it on a timer)')
+    p.add_argument('--since', metavar='WHEN',
+                   help=f'on the first run, archive messages since WHEN (default {sync.DEFAULT_BACKFILL})')
+    p.add_argument('--no-notify', dest='notify', action='store_false',
+                   help='archive only; send no notifications')
+    p.add_argument('--quiet', '-q', action='store_true', help='print nothing unless there is news')
+
+    p = command('recent', 'read synced messages from the local archive, without calling Graph',
+                since='messages sent at or after WHEN')
+    _chat_selection(p)
+
+    p = command('wait', 'poll chats until someone else posts, then print the new messages '
+                '(exit status 3 on timeout)')
+    _chat_selection(p, positional=True)
+    p.add_argument('--since', metavar='WHEN',
+                   help='count messages sent at or after WHEN (default: now)')
+    p.add_argument('--timeout', type=_duration, default='8h', metavar='DURATION',
+                   help='give up after DURATION: 90s, 30m, 8h (default 8h)')
+    p.add_argument('--interval', type=float, default=60, metavar='SECONDS',
+                   help='seconds between polls (default 60)')
+
     command('mcp', 'run a read-only MCP server on stdio (needs the teams-reader[mcp] extra)')
     return parser
+
+
+def _duration(value: str):
+    try:
+        return parse_duration(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from None
+
+
+def _chat_selection(p: argparse.ArgumentParser, positional: bool = False) -> None:
+    if positional:
+        p.add_argument('chats', nargs='*', metavar='CHAT', help='chat ID or Teams link')
+    else:
+        p.add_argument('--chat', dest='chats', action='append', metavar='CHAT',
+                       help='only this chat (ID or Teams link); repeatable')
+    p.add_argument('--project', action='append', metavar='NAME',
+                   help='only the chats of this project in projects.toml; repeatable')
+    p.add_argument('--from', dest='sender', metavar='NAME',
+                   help='only messages whose sender name contains NAME')
+
+
+def _selected_chats(args: argparse.Namespace) -> list[str]:
+    chats = [sync.chat_id(c) for c in args.chats or []]
+    if args.project:
+        config = sync.load_config()
+        for name in args.project:
+            chats += sync.project_chats(config, name)
+    return list(dict.fromkeys(chats))
 
 
 def run_command(args: argparse.Namespace, since):
@@ -100,7 +150,7 @@ def run_command(args: argparse.Namespace, since):
     if cmd == 'chats':
         return reader.list_chats(since=since, limit=limit)
     if cmd == 'messages':
-        return reader.chat_messages(args.chat_id, since=since, limit=limit,
+        return reader.chat_messages(sync.chat_id(args.chat_id), since=since, limit=limit,
                                     include_system=include_system)
     if cmd == 'teams':
         return reader.list_teams()
@@ -119,6 +169,17 @@ def run_command(args: argparse.Namespace, since):
         for warning in warnings:
             print(f'teams-reader: warning: {warning}', file=sys.stderr)
         return matches
+    if cmd == 'sync':
+        return sync.sync(backfill=since, notify=args.notify)
+    if cmd == 'recent':
+        items, warnings = sync.recent(_selected_chats(args) or None, since, limit=limit,
+                                      sender=args.sender)
+        for warning in warnings:
+            print(f'teams-reader: warning: {warning}', file=sys.stderr)
+        return items
+    if cmd == 'wait':
+        return sync.wait(_selected_chats(args), since=since, sender=args.sender,
+                         timeout=args.timeout, interval=args.interval)
     raise AssertionError(cmd)
 
 
@@ -143,6 +204,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == 'search' and not args.text.strip():
         parser.error('search text must not be empty')
+    if args.command == 'wait' and not (args.chats or args.project):
+        parser.error('wait needs a chat ID, Teams link or --project')
     try:
         since = parse_since(getattr(args, 'since', None))
     except ValueError as exc:
@@ -155,17 +218,21 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == 'mcp':
             return run_mcp()
         result = run_command(args, since)
-    except m365.ConfigError as exc:
+    except (m365.ConfigError, sync.LinkError) as exc:
         print(f'teams-reader: {exc}', file=sys.stderr)
         return 2
     except m365.M365Error as exc:
         print(f'teams-reader: {exc}', file=sys.stderr)
         return 1
+    if args.command == 'sync' and args.quiet and not result['messages']:
+        return 0
     if args.format == 'md':
         sys.stdout.write(render.RENDERERS[args.command](result) + '\n')
     else:
         json.dump(result, sys.stdout, indent=2, ensure_ascii=False)
         sys.stdout.write('\n')
+    if args.command == 'wait' and not result:
+        return 3
     return 0
 
 

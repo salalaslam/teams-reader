@@ -283,8 +283,30 @@ def search_results(items: list[dict]) -> str:
     return '\n'.join(out) or '(no matches)'
 
 
+def by_chat(items: list[dict], empty: str = '(no messages)') -> str:
+    """Messages from several chats, grouped by chat, most recently active chat first."""
+    groups: dict[str, list[dict]] = {}
+    for msg in sorted(items, key=lambda m: m.get('createdDateTime') or '', reverse=True):
+        groups.setdefault(msg.get('chatId') or '?', []).append(msg)
+    out = []
+    for chat_id, group in groups.items():
+        out.append(f"### {group[0].get('chatName') or chat_id}\nchat: {chat_id}")
+        out.append(messages(group))
+    return '\n'.join(out) or empty
+
+
+def sync_summary(result: dict) -> str:
+    if result['first_run']:
+        return (f"Archived {result['messages']} messages from {result['chats']} chats "
+                '(first run: no notifications).')
+    return (f"{result['messages']} new messages in {result['chats']} chats, "
+            f"{result['notifications']} notifications.")
+
+
 RENDERERS: dict[str, Callable[[Any], str]] = {
     'status': status, 'chats': chats, 'messages': messages, 'teams': teams,
     'channels': channels, 'posts': posts,
     'replies': lambda items: messages(items, '(no replies)'), 'search': search_results,
+    'recent': by_chat, 'wait': lambda items: by_chat(items, '(no new messages)'),
+    'sync': sync_summary,
 }

@@ -30,7 +30,7 @@ start.
 
 ## Install
 
-Install CLI for Microsoft 365 (needs Node.js LTS) and teams-reader (needs Python 3.10 or later):
+Install CLI for Microsoft 365 (needs Node.js LTS) and teams-reader (needs Python 3.11 or later):
 
 ```sh
 npm install -g @pnp/cli-microsoft365
@@ -90,6 +90,9 @@ teams-reader channels TEAM_ID                        list a team's channels
 teams-reader posts TEAM_ID CHANNEL_ID [--replies]    read channel threads, most recently active first
 teams-reader replies TEAM_ID CHANNEL_ID MESSAGE_ID   read replies to a channel post
 teams-reader search TEXT [--scan]                    search chat and channel messages
+teams-reader sync                                    archive new chat messages locally (run on a timer)
+teams-reader recent [--project P] [--chat C]         read the local archive, without calling Graph
+teams-reader wait CHAT... | --project P [--from N]   wait until someone else posts
 teams-reader mcp                                     run the MCP server on stdio
 teams-reader status | login | logout
 ```
@@ -164,6 +167,53 @@ of a word or an ID. It covers the 25 most recently active chats (`--chats N`) an
 channel of every team you belong to, within `--since` (default `7d`). It is slower: each
 chat or channel is a separate request.
 
+### Local archive, notifications and waiting
+
+`teams-reader sync` lists your chats by latest message and fetches only the ones that
+changed since its last run, appending new messages to one JSON Lines file per chat in
+`~/.local/state/teams-reader` (or `$XDG_STATE_HOME/teams-reader`), readable only by you.
+The first run archives the last 7 days (`--since` changes that). After that, a run with
+nothing new is one Graph request. Run it on a timer with the systemd units in
+[contrib/systemd](contrib/systemd):
+
+```sh
+cp contrib/systemd/teams-reader-sync.* ~/.config/systemd/user/
+systemctl --user daemon-reload && systemctl --user enable --now teams-reader-sync.timer
+```
+
+`teams-reader recent` reads the archive with no network call, newest first, and groups the
+Markdown output by chat. It warns on stderr when the last sync is over 15 minutes old or
+failed. Filter with `--since`, `--chat` (an ID or a Teams link), `--project` and `--from`.
+
+`teams-reader wait` polls chats live (every 60 seconds by default) and exits as soon as
+someone other than you posts, printing the new messages. It exits with status 3 after
+`--timeout` (default `8h`). An agent can run it in the background and pick the
+conversation up when it returns. `--since` counts messages already sent after a given time.
+
+Commands that take a chat ID also accept a Teams link to the chat or to one of its messages.
+
+Optional `~/.config/teams-reader/projects.toml` names groups of chats and controls
+notifications. After the first sync, `sync` can publish to an
+[ntfy](https://ntfy.sh) topic for direct messages, @mentions of you, chosen senders, and
+every message in chosen projects' chats:
+
+```toml
+[notify]
+ntfy = "http://127.0.0.1:8090/teams"  # server URL and topic; omit to disable
+people = ["Priya Shah"]               # always notify for these senders
+direct = true                         # direct messages (default true)
+mentions = true                       # @mentions of you (default true)
+
+[projects.launch]
+chats = ["19:3f2a9c1e5b7d4e0f8a6b2c4d1e9f7a3b@thread.v2"]
+notify = true                         # every message in these chats
+```
+
+Notifications contain message text, so use a self-hosted ntfy server or a topic only you
+know. teams-reader ignores keys it doesn't use, so the same file can also list each
+project's repos and people for agents. A failing sync (for example an expired sign-in)
+sends one notification and keeps failing quietly until it recovers.
+
 ## MCP server
 
 `teams-reader mcp` runs a stdio MCP server. Its tools are `list_chats`, `read_chat`,
@@ -216,10 +266,11 @@ client secrets or write scopes are involved.
 | `ChannelMessage.Read.All` | `posts`, `replies`, channel results in `search` (`GET /teams/{id}/channels/{id}/messages[/{id}/replies]`) | **Yes, always** |
 | `Team.ReadBasic.All` | `teams`, team names (`GET /me/joinedTeams`) | No |
 | `Channel.ReadBasic.All` | `channels`, channel names (`GET /teams/{id}/channels`) | No |
+| `User.Read` | `sync` and `wait`, to tell your own messages and @mentions apart (`GET /me`) | No |
 
 `offline_access` (to refresh the session) is requested automatically at sign-in and needs no
-admin consent. teams-reader doesn't read your profile (`GET /me`), so `User.Read` isn't
-required. It is harmless to keep, and new app registrations include it by default.
+admin consent. `User.Read` is only needed by `sync` and `wait`; new app registrations
+include it by default.
 
 Do not add `ChatMessage.Send`, any `*.ReadWrite*` permission, or any application permission.
 The Graph permissions are the real security boundary, because `m365` itself can also write.
