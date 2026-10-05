@@ -6,10 +6,12 @@ editing or deleting.
 """
 from __future__ import annotations
 
+import functools
 import json
 from typing import Any, Literal
 
 from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from . import __version__, m365, reader, render, search
@@ -32,7 +34,16 @@ server = MCPServer(
 
 
 def tool(fn):
-    return server.tool(annotations=READ_ONLY, structured_output=False)(fn)
+    """Register a read-only tool; expected failures reach the model as messages."""
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except (m365.M365Error, m365.ConfigError, ValueError) as exc:
+            raise ToolError(str(exc)) from exc
+
+    return server.tool(annotations=READ_ONLY, structured_output=False)(wrapper)
 
 
 def _out(kind: str, data: Any, fmt: Format) -> str:
