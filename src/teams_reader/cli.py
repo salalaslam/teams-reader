@@ -5,7 +5,7 @@ import argparse
 import json
 import sys
 
-from . import __version__, m365, reader, render
+from . import __version__, m365, reader, render, search
 from .timeutil import parse_since
 
 
@@ -27,8 +27,8 @@ def build_parser() -> argparse.ArgumentParser:
         prog='teams-reader', description=__doc__,
         epilog='Times are UTC. --since accepts 7d, 12h, 30m, 2w, or an ISO date/date-time.')
     parser.add_argument('--version', action='version', version=f'%(prog)s {__version__}')
-    fmt_help = ('json: raw Microsoft Graph objects (default); md: compact text with HTML '
-                'and system events stripped, to save LLM tokens')
+    fmt_help = ('json (default): Microsoft Graph objects as returned; md: compact text '
+                'with HTML and system events stripped, to save LLM tokens')
     parser.add_argument('--format', '-f', choices=FORMATS, default='json', help=fmt_help)
     # Also accept --format after the subcommand without overriding the global default.
     common = argparse.ArgumentParser(add_help=False)
@@ -73,6 +73,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument('team_id')
     p.add_argument('channel_id')
     p.add_argument('message_id')
+
+    p = command('search', 'find messages containing TEXT in recent chats and channels '
+                '(case-insensitive substring, scanned client-side)',
+                since=f'messages sent at or after WHEN; default {search.DEFAULT_SINCE}')
+    p.set_defaults(since=search.DEFAULT_SINCE)
+    p.add_argument('text')
+    p.add_argument('--chats', type=_count, default=search.DEFAULT_MAX_CHATS, metavar='N',
+                   help='scan at most the N most recently active chats '
+                   f'(default {search.DEFAULT_MAX_CHATS}; 0 = all)')
+    p.add_argument('--no-channels', dest='channels', action='store_false',
+                   help='skip team channels')
     return parser
 
 
@@ -98,12 +109,20 @@ def run_command(args: argparse.Namespace, since):
     if cmd == 'replies':
         return reader.post_replies(args.team_id, args.channel_id, args.message_id,
                                    since=since, limit=limit, include_system=include_system)
+    if cmd == 'search':
+        matches, warnings = search.search(args.text, since, limit=limit,
+                                          max_chats=args.chats, channels=args.channels)
+        for warning in warnings:
+            print(f'teams-reader: warning: {warning}', file=sys.stderr)
+        return matches
     raise AssertionError(cmd)
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.command == 'search' and not args.text.strip():
+        parser.error('search text must not be empty')
     try:
         since = parse_since(getattr(args, 'since', None))
     except ValueError as exc:

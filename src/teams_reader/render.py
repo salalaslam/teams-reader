@@ -100,8 +100,8 @@ def html_to_text(content: str | None, content_type: str = 'html') -> str:
     return '\n'.join(line for line in lines if line)
 
 
-def message_text(message: dict) -> str:
-    """Body text plus attachment placeholders."""
+def message_text(message: dict, quotes: bool = True) -> str:
+    """Body text plus attachment placeholders (optionally without quoted messages)."""
     body = message.get('body') or {}
     parts = [html_to_text(body.get('content'), body.get('contentType', 'html'))]
     subject = message.get('subject')
@@ -109,9 +109,9 @@ def message_text(message: dict) -> str:
         parts.insert(0, f'Subject: {subject}')
     attachments = [(a.get('contentType') or '', _attachment(a))
                    for a in message.get('attachments') or []]
-    quotes = [text for kind, text in attachments if kind.endswith('essageReference')]
+    quoted = [text for kind, text in attachments if kind.endswith('essageReference')]
     others = [text for kind, text in attachments if not kind.endswith('essageReference')]
-    return '\n'.join(p for p in [*quotes, *parts, *others] if p)
+    return '\n'.join(p for p in [*(quoted if quotes else []), *parts, *others] if p)
 
 
 def _attachment(att: dict) -> str:
@@ -264,8 +264,24 @@ def status(info: Any) -> str:
     return '\n'.join(f'- {k}: {v}' for k, v in info.items())
 
 
+def search_results(items: list[dict]) -> str:
+    out = []
+    for hit in items:
+        when = _stamp(item_time(hit))
+        if hit.get('source') == 'chat':
+            where = f"chat **{hit.get('chatName')}**"
+            ref = f"chat: {hit.get('chatId')}"
+        else:
+            where = f"**{hit.get('teamName')} / {hit.get('channelName')}**"
+            ref = (f"team: {hit.get('teamId')} channel: {hit.get('channelId')} "
+                   f"thread: {hit.get('threadId')}")
+        out.append(f"- {when} {where} · {hit.get('from')}: {_clip(hit.get('text') or '', 400)}"
+                   f"\n  {ref}")
+    return '\n'.join(out) or '(no matches)'
+
+
 RENDERERS: dict[str, Callable[[Any], str]] = {
     'status': status, 'chats': chats, 'messages': messages, 'teams': teams,
     'channels': channels, 'posts': posts,
-    'replies': lambda items: messages(items, '(no replies)'),
+    'replies': lambda items: messages(items, '(no replies)'), 'search': search_results,
 }
