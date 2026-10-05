@@ -19,9 +19,12 @@ from urllib.parse import quote
 GRAPH_ROOT = 'https://graph.microsoft.com/v1.0'
 GRAPH_PAGE_MAX = 50  # Graph's maximum $top for the Teams endpoints used here
 
-# Installation layout used by the original shell-script deployment. Still
-# honoured so existing installs keep working without reconfiguration.
-LEGACY_ROOT = Path.home() / '.local/share/teams-reader'
+
+
+def legacy_root() -> Path:
+    """Install location of the original shell-script deployment. Still honoured
+    so existing installs keep working without reconfiguration."""
+    return Path.home() / '.local/share/teams-reader'
 
 
 class M365Error(RuntimeError):
@@ -40,7 +43,7 @@ def find_cli() -> list[str]:
     on_path = shutil.which('m365')
     if on_path:
         return [on_path]
-    legacy = LEGACY_ROOT / 'node_modules/.bin/m365'
+    legacy = legacy_root() / 'node_modules/.bin/m365'
     if legacy.exists():
         return [str(legacy)]
     raise M365Error(
@@ -145,7 +148,7 @@ def login(app_id: str | None = None, tenant: str | None = None) -> int:
 
 def config_paths() -> list[Path]:
     xdg = os.environ.get('XDG_CONFIG_HOME') or str(Path.home() / '.config')
-    return [Path(xdg) / 'teams-reader/account.json', LEGACY_ROOT / 'account.json']
+    return [Path(xdg) / 'teams-reader/account.json', legacy_root() / 'account.json']
 
 
 def load_account(app_id: str | None = None, tenant: str | None = None) -> tuple[str, str]:
