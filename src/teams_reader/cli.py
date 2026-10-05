@@ -84,6 +84,8 @@ def build_parser() -> argparse.ArgumentParser:
                    f'(default {search.DEFAULT_MAX_CHATS}; 0 = all)')
     p.add_argument('--no-channels', dest='channels', action='store_false',
                    help='skip team channels')
+
+    command('mcp', 'run a read-only MCP server on stdio (needs the teams-reader[mcp] extra)')
     return parser
 
 
@@ -118,6 +120,22 @@ def run_command(args: argparse.Namespace, since):
     raise AssertionError(cmd)
 
 
+def run_mcp() -> int:
+    try:
+        from .mcp_server import main as serve
+    except ImportError as exc:
+        if exc.name is None or not exc.name.startswith('mcp'):
+            raise
+        print('teams-reader: the MCP server needs the optional mcp extra. Run it with\n'
+              "  uvx --from 'teams-reader[mcp] @ git+https://github.com/salalaslam/teams-reader'"
+              ' teams-reader mcp\n'
+              "or install with: pipx install 'teams-reader[mcp] @ "
+              "git+https://github.com/salalaslam/teams-reader'", file=sys.stderr)
+        return 1
+    serve()
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -132,6 +150,8 @@ def main(argv: list[str] | None = None) -> int:
             return m365.login(args.app_id, args.tenant)
         if args.command == 'logout':
             return m365.logout()
+        if args.command == 'mcp':
+            return run_mcp()
         result = run_command(args, since)
     except m365.ConfigError as exc:
         print(f'teams-reader: {exc}', file=sys.stderr)
