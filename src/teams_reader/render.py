@@ -45,6 +45,8 @@ class _TextExtractor(HTMLParser):
             self.parts.append(' | ')
         elif tag == 'at':
             self.parts.append('@')
+        elif tag == 'ddd':  # elision marker in Microsoft Search snippets
+            self.parts.append('…')
         elif tag == 'code':
             self.parts.append('`')
         elif tag == 'img':
@@ -269,12 +271,13 @@ def search_results(items: list[dict]) -> str:
     for hit in items:
         when = _stamp(item_time(hit))
         if hit.get('source') == 'chat':
-            where = f"chat **{hit.get('chatName')}**"
+            where = f"chat **{hit.get('chatName') or hit.get('chatId')}**"
             ref = f"chat: {hit.get('chatId')}"
         else:
-            where = f"**{hit.get('teamName')} / {hit.get('channelName')}**"
-            ref = (f"team: {hit.get('teamId')} channel: {hit.get('channelId')} "
-                   f"thread: {hit.get('threadId')}")
+            where = f"**{hit.get('teamName') or '?'} / {hit.get('channelName') or '?'}**"
+            ref = f"team: {hit.get('teamId')} channel: {hit.get('channelId')} "
+            ref += (f"thread: {hit['threadId']}" if hit.get('threadId')
+                    else f"message: {hit.get('messageId')}")
         out.append(f"- {when} {where} · {hit.get('from')}: {_clip(hit.get('text') or '', 400)}"
                    f"\n  {ref}")
     return '\n'.join(out) or '(no matches)'

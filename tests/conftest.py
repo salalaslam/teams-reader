@@ -39,6 +39,12 @@ FAKE_M365 = textwrap.dedent('''
         sys.exit(0)
     if args[0] in ('login', 'logout'):
         sys.exit(0)
+    if args[0] == 'search':
+        route = routes.get('__search__', {'hits': []})
+        if 'error' in route:
+            fail(route['error'])
+        print(json.dumps(route['hits'][:int(opt('--pageSize') or 25)], indent=2))
+        sys.exit(0)
     if args[0] != 'request' or opt('--method') != 'get':
         fail('fake m365 only serves GET requests')
 
@@ -50,6 +56,9 @@ FAKE_M365 = textwrap.dedent('''
         fail('Request failed with status code 404')
     if 'error' in route:
         fail(route['error'])
+    if 'object' in route:
+        print(json.dumps(route['object'], indent=2))
+        sys.exit(0)
     query = dict(parse_qsl(url.query))
     items = route['items']
     if 'replies' not in query.get('$expand', ''):
@@ -98,6 +107,18 @@ def chat(id: str, last: str, topic: str | None = None, members=('Alex Doe', 'Sam
     }
 
 
+def search_hit(id: str, created: str, summary: str, sender: str = 'Alex Doe', *,
+               chat_id: str | None = None, team_id: str | None = None,
+               channel_id: str | None = None) -> dict:
+    """A Microsoft Search result for a chat or channel message."""
+    identity = {'teamId': team_id, 'channelId': channel_id} if channel_id else {}
+    return {'hitId': id, 'summary': summary, 'resource': {
+        '@odata.type': 'microsoft.graph.chatMessage', 'id': id, 'createdDateTime': created,
+        'chatId': chat_id, 'channelIdentity': identity,
+        'from': {'emailAddress': {'name': sender, 'address': 'someone@contoso.example'}},
+        'webLink': f'https://teams.example/{id}'}}
+
+
 class FakeGraph:
     def __init__(self, state: Path) -> None:
         self.state = state
@@ -106,8 +127,24 @@ class FakeGraph:
         self._save()
 
     def add(self, path: str, items: list[dict]) -> None:
+        """A collection, served in pages."""
         self.routes[path] = {'items': items}
         self._save()
+
+    def add_object(self, path: str, obj: dict) -> None:
+        """A single resource."""
+        self.routes[path] = {'object': obj}
+        self._save()
+
+    def search_hits(self, hits: list[dict]) -> None:
+        """Results for `m365 search` (Microsoft Search), newest first."""
+        self.routes['__search__'] = {'hits': hits}
+        self._save()
+
+    @property
+    def search_queries(self) -> list[str]:
+        return [arg.split('=', 1)[1] for call in self.calls if call[0] == 'search'
+                for arg in call if arg.startswith('--queryText=')]
 
     def fail(self, path: str, error: str) -> None:
         self.routes[path] = {'error': error}

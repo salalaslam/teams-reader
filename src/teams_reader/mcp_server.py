@@ -125,21 +125,23 @@ def read_thread_replies(team_id: str, channel_id: str, message_id: str,
 
 
 @tool
-def search_messages(query: str, since: str = search.DEFAULT_SINCE, limit: int = 30,
-                    max_chats: int = search.DEFAULT_MAX_CHATS, include_channels: bool = True,
-                    format: Format = 'md') -> str:
-    """Find messages containing `query` (case-insensitive substring) in recently
-    active chats and in all channels of the user's teams. This scans messages
-    client-side, so keep `since` short (default 7d); it can take 10-60 seconds.
+def search_messages(query: str, since: str | None = None, limit: int = search.DEFAULT_LIMIT,
+                    include_channels: bool = True, scan: bool = False,
+                    max_chats: int = search.DEFAULT_MAX_CHATS, format: Format = 'md') -> str:
+    """Search the user's Teams chat and channel messages, newest first.
 
-    max_chats: scan at most this many of the most recently active chats.
+    By default this uses Microsoft Search over the whole history: words and
+    prefixes in KQL syntax (e.g. `budget`, `"exact phrase"`, `deploy*`), with a
+    snippet per result. Set scan=true to instead read recent messages and match
+    `query` as a case-insensitive substring of the full text (slower: 10-60s;
+    `since` defaults to 7d and only the `max_chats` most active chats are read).
+
+    since: only messages sent at or after this time (7d, 2026-10-01, ...).
     JSON output is {"matches": [...], "warnings": [...]}.
     """
-    since_time = parse_since(since)
-    if since_time is None:
-        raise ValueError('since is required for search')
-    matches, warnings = search.search(query, since_time, limit=_limit(limit),
-                                      max_chats=max_chats, channels=include_channels)
+    matches, warnings = search.search(query, parse_since(since), limit=_limit(limit),
+                                      channels=include_channels, scan=scan,
+                                      max_chats=max_chats)
     if format == 'json':
         return json.dumps({'matches': matches, 'warnings': warnings}, ensure_ascii=False)
     text = render.search_results(matches)

@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from conftest import ago, chat, msg
+from conftest import ago, chat, msg, search_hit
 
 TEAM = '00000000-0000-0000-0000-00000000aaaa'
 CHANNEL = '19:general@thread.tacv2'
@@ -16,15 +16,21 @@ def test_every_read_command_only_issues_get_requests(graph, run):
     graph.add(f'/teams/{TEAM}/channels', [{'id': CHANNEL, 'displayName': 'General'}])
     graph.add(f'/teams/{TEAM}/channels/{CHANNEL}/messages', [msg('p1', ago(hours=1), 'post')])
     graph.add(f'/teams/{TEAM}/channels/{CHANNEL}/messages/p1/replies', [])
+    graph.add_object('/chats/c1', chat('c1', ago(hours=1)))
+    graph.add_object(f'/teams/{TEAM}/channels/{CHANNEL}', {'id': CHANNEL, 'displayName': 'General'})
+    graph.search_hits([search_hit('h1', ago(hours=1), 'hello', chat_id='c1'),
+                       search_hit('h2', ago(hours=2), 'hello', team_id=TEAM, channel_id=CHANNEL)])
 
     for argv in (['status'], ['chats'], ['messages', 'c1'], ['teams'], ['channels', TEAM],
                  ['posts', TEAM, CHANNEL, '--replies'], ['replies', TEAM, CHANNEL, 'p1'],
-                 ['search', 'hello']):
+                 ['search', 'hello'], ['search', 'hello', '--scan']):
         for fmt in ('json', 'md'):
             assert run(*argv, '--format', fmt)[0] == 0, argv
 
     for call in graph.calls:
-        assert call[0] in ('status', 'request'), call
+        assert call[0] in ('status', 'request', 'search'), call
+        if call[0] == 'search':
+            assert call[call.index('--scopes') + 1] == 'chatMessage'
         if call[0] == 'request':
             assert call[call.index('--method') + 1] == 'get'
             assert call[call.index('--url') + 1].startswith('https://graph.microsoft.com/v1.0/')

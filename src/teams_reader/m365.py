@@ -1,9 +1,13 @@
 """Thin, read-only bridge to the CLI for Microsoft 365 (`m365`).
 
-Every Graph call goes through :func:`graph_get`, which always runs
-``m365 request --method get``. Nothing in this package issues any other HTTP
-method, and no caller can supply an arbitrary URL: paths are built from fixed
-templates with each ID percent-encoded.
+Only three m365 commands are ever run for reading:
+
+- ``m365 request --method get`` via :func:`graph_get`. No caller can supply an
+  arbitrary URL: paths are built from fixed templates with each ID
+  percent-encoded, and only Graph nextLinks are followed.
+- ``m365 search --scopes chatMessage`` via :func:`search_messages`, m365's
+  built-in Microsoft Search query (a read, though Graph takes it as a POST).
+- ``m365 status``.
 """
 from __future__ import annotations
 
@@ -18,6 +22,7 @@ from urllib.parse import quote
 
 GRAPH_ROOT = 'https://graph.microsoft.com/v1.0'
 GRAPH_PAGE_MAX = 50  # Graph's maximum $top for the Teams endpoints used here
+SEARCH_PAGE_MAX = 500  # m365 search --pageSize maximum
 
 
 
@@ -127,6 +132,13 @@ def _iter_items(path: str, params: dict[str, Any]) -> Iterator[dict]:
         if not next_link:
             return
         page = graph_get(next_link)
+
+
+def search_messages(query: str, size: int) -> list[dict]:
+    """Microsoft Search over chat and channel messages, newest first."""
+    hits = run(['search', '--scopes', 'chatMessage', f'--queryText={query}',
+                '--pageSize', str(max(1, min(size, SEARCH_PAGE_MAX))), '--resultsOnly'])
+    return hits or []
 
 
 def status() -> Any:

@@ -36,13 +36,13 @@ def build_parser() -> argparse.ArgumentParser:
                         help=fmt_help)
     sub = parser.add_subparsers(dest='command', required=True, metavar='COMMAND')
 
-    def command(name: str, help: str, *, since: str | None = None) -> argparse.ArgumentParser:
+    def command(name: str, help: str, *, since: str | None = None,
+                limit: int = reader.DEFAULT_LIMIT) -> argparse.ArgumentParser:
         p = sub.add_parser(name, help=help, description=help, parents=[common])
         if since:
-            p.add_argument('--since', metavar='WHEN', help=f'only {since} (7d, 12h, 2026-10-01, ...)')
-            p.add_argument('--limit', '--top', '-n', type=_count, default=reader.DEFAULT_LIMIT,
-                           metavar='N', help=f'maximum items to return (default '
-                           f'{reader.DEFAULT_LIMIT}; 0 = no limit)')
+            p.add_argument('--since', metavar='WHEN', help=f'only {since}: 7d, 12h, 2026-10-01, ...')
+            p.add_argument('--limit', '--top', '-n', type=_count, default=limit, metavar='N',
+                           help=f'maximum items to return (default {limit}; 0 = no limit)')
         return p
 
     command('status', 'show the signed-in account')
@@ -74,16 +74,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument('channel_id')
     p.add_argument('message_id')
 
-    p = command('search', 'find messages containing TEXT in recent chats and channels '
-                '(case-insensitive substring, scanned client-side)',
-                since=f'messages sent at or after WHEN; default {search.DEFAULT_SINCE}')
-    p.set_defaults(since=search.DEFAULT_SINCE)
-    p.add_argument('text')
+    p = command('search', 'search chat and channel messages (Microsoft Search by default; '
+                '--scan for a client-side substring scan of recent messages)',
+                since='messages sent at or after WHEN (default with --scan: '
+                f'{search.DEFAULT_SCAN_SINCE})', limit=search.DEFAULT_LIMIT)
+    p.add_argument('text', help='words to find (KQL syntax), or a substring with --scan')
+    p.add_argument('--scan', action='store_true',
+                   help='read recent messages and match TEXT as a case-insensitive substring')
     p.add_argument('--chats', type=_count, default=search.DEFAULT_MAX_CHATS, metavar='N',
-                   help='scan at most the N most recently active chats '
+                   help='with --scan, scan at most the N most recently active chats '
                    f'(default {search.DEFAULT_MAX_CHATS}; 0 = all)')
     p.add_argument('--no-channels', dest='channels', action='store_false',
-                   help='skip team channels')
+                   help='leave out team channel messages')
 
     command('mcp', 'run a read-only MCP server on stdio (needs the teams-reader[mcp] extra)')
     return parser
@@ -112,7 +114,7 @@ def run_command(args: argparse.Namespace, since):
         return reader.post_replies(args.team_id, args.channel_id, args.message_id,
                                    since=since, limit=limit, include_system=include_system)
     if cmd == 'search':
-        matches, warnings = search.search(args.text, since, limit=limit,
+        matches, warnings = search.search(args.text, since, limit=limit, scan=args.scan,
                                           max_chats=args.chats, channels=args.channels)
         for warning in warnings:
             print(f'teams-reader: warning: {warning}', file=sys.stderr)

@@ -58,6 +58,14 @@ def chat_messages(chat_id: str, since: datetime | None = None,
                          limit=limit, keep=keep, stop=too_old)
 
 
+def get_chat(chat_id: str) -> dict:
+    return m365.graph_get(m365.path('/chats/{}', chat_id), {'$expand': 'members'})
+
+
+def get_channel(team_id: str, channel_id: str) -> dict:
+    return m365.graph_get(m365.path('/teams/{}/channels/{}', team_id, channel_id))
+
+
 def list_teams() -> list[dict]:
     return m365.paginate('/me/joinedTeams')
 
