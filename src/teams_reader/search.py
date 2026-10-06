@@ -67,7 +67,8 @@ def _microsoft_search(query: str, since: datetime | None, *, limit: int | None,
 def _search_hit(hit: dict) -> dict:
     resource = hit.get('resource') or {}
     identity = resource.get('channelIdentity') or {}
-    if identity.get('channelId'):
+    # Chat hits can carry a channelIdentity too: the chat ID with no team.
+    if identity.get('teamId') and identity.get('channelId'):
         where = dict(source='channel', teamId=identity.get('teamId'), teamName=None,
                      channelId=identity.get('channelId'), channelName=None)
     else:

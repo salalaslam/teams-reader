@@ -37,6 +37,18 @@ def test_search_uses_microsoft_search_and_names_each_source(graph, run):
     assert hits[2]['chatName'] == 'Priya Shah, Alex Doe'
 
 
+def test_search_treats_a_chat_hit_with_a_teamless_channel_identity_as_a_chat(graph, run):
+    # Microsoft Search fills channelIdentity.channelId with the chat ID on chat hits.
+    named_sources(graph)
+    graph.search_hits([search_hit('h1', ago(hours=1), 'budget', chat_id='c1', channel_id='c1')])
+
+    code, out, err = run('search', 'budget')
+
+    assert code == 0, err
+    hit, = json.loads(out)
+    assert (hit['source'], hit['chatId'], hit['chatName']) == ('chat', 'c1', 'Launch')
+
+
 def test_search_since_is_sent_to_microsoft_search_and_enforced(graph, run):
     named_sources(graph)
     graph.search_hits([search_hit('new', ago(hours=1), 'budget', chat_id='c1'),
