@@ -154,3 +154,15 @@ def test_status_reports_the_connection(graph, run):
     code, out, _ = run('status')
     assert code == 0
     assert json.loads(out)['connectedAs'] == 'alex@contoso.example'
+
+
+def test_cards_with_backslash_line_endings_show_their_text(graph, run):
+    card = ('{\r\\\n  "type": "AdaptiveCard",\r\\\n  "body": [\r\\\n'
+            '    {"type": "TextBlock", "text": "PDTS decision"},\r\\\n'
+            '    {"type": "TextBlock", "text": "Approve batch 4"}\r\\\n  ]\r\\\n}')
+    graph.add(f'/chats/{CHAT}/messages', [msg('1', '2026-10-02T09:00:00Z', '', attachments=[
+        {'contentType': 'application/vnd.microsoft.card.adaptive', 'content': card}])])
+
+    _, out, _ = run('-f', 'md', 'messages', CHAT)
+
+    assert '[card: PDTS decision / Approve batch 4]' in out

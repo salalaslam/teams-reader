@@ -150,10 +150,13 @@ def _card_texts(node: Any) -> list[str]:
 
 def _json(value: Any) -> Any:
     if isinstance(value, str):
-        try:
-            return json.loads(value)
-        except json.JSONDecodeError:
-            return None
+        # Teams sometimes ends card JSON lines with a stray backslash before the newline.
+        for text in (value, re.sub(r'\\(?=\r?\n)', '', value)):
+            try:
+                return json.loads(text)
+            except json.JSONDecodeError:
+                pass
+        return None
     return value
 
 
