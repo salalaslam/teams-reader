@@ -41,8 +41,8 @@ def test_since_relative_keeps_only_recent_messages(graph, run):
 
 
 def test_since_accepts_iso_dates(graph, run):
-    old = msg('old', '2026-01-31T23:59:59Z', 'old')
-    new = msg('new', '2026-02-01T00:00:00.5Z', 'new')
+    old = msg('old', '2026-01-31T18:59:59Z', 'old')  # local midnight is 19:00Z
+    new = msg('new', '2026-01-31T19:00:00.5Z', 'new')
     graph.add(f'/chats/{CHAT}/messages', [new, old])
 
     _, out, _ = run('messages', CHAT, '--since', '2026-02-01')
@@ -94,9 +94,9 @@ def test_markdown_messages_are_plain_text_oldest_first_without_system_events(gra
     assert code == 0
     assert out == (
         '## 2026-10-01\n'
-        '17:00Z Sam Lee: Draft is here (https://example.com/d)\n'
+        '22:00 PKT Sam Lee: Draft is here (https://example.com/d)\n'
         '## 2026-10-02\n'
-        '09:05Z Alex Doe: Thanks @Sam Lee & team\n'
+        '14:05 PKT Alex Doe: Thanks @Sam Lee & team\n'
         '  Second line\n'
         '  [file: plan.pdf]\n')
 

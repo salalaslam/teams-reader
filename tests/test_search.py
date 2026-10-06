@@ -43,7 +43,8 @@ def test_search_since_is_sent_to_microsoft_search_and_enforced(graph, run):
                        search_hit('old', ago(days=3), 'budget', chat_id='c2')])
 
     _, out, _ = run('search', 'budget', '--since', '2026-01-15')
-    assert graph.search_queries == ['budget sent>=2026-01-14']
+    # Local midnight on the 15th is 19:00Z on the 14th; the query allows a day of slack.
+    assert graph.search_queries == ['budget sent>=2026-01-13']
 
     _, out, _ = run('search', 'budget', '--since', '1d')
     assert [h['messageId'] for h in json.loads(out)] == ['new']

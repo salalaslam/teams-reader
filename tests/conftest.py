@@ -11,6 +11,7 @@ import json
 import shlex
 import sys
 import textwrap
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -163,6 +164,16 @@ class FakeGraph:
     @property
     def urls(self) -> list[str]:
         return [c[c.index('--url') + 1] for c in self.calls if c[0] == 'request']
+
+
+@pytest.fixture(autouse=True)
+def local_timezone(monkeypatch: pytest.MonkeyPatch):
+    """Pin local time to UTC+5 so rendered times are deterministic."""
+    monkeypatch.setenv('TZ', 'Asia/Karachi')
+    time.tzset()
+    yield
+    monkeypatch.undo()
+    time.tzset()
 
 
 @pytest.fixture

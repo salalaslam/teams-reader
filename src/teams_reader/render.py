@@ -178,8 +178,9 @@ def sender(message: dict) -> str:
     return _name(message.get('from'))
 
 
-def _stamp(when: datetime | None, fmt: str = '%Y-%m-%d %H:%MZ') -> str:
-    return when.strftime(fmt) if when else '????-??-?? ??:??Z'
+def _stamp(when: datetime | None, fmt: str = '%Y-%m-%d %H:%M %Z') -> str:
+    """Format a UTC time in the local timezone (set TZ to choose another)."""
+    return when.astimezone().strftime(fmt) if when else '????-??-?? ??:??'
 
 
 def _indent(text: str, prefix: str = '  ') -> str:
@@ -211,7 +212,7 @@ def chats(items: list[dict]) -> str:
 
 
 def messages(items: list[dict], empty: str = '(no messages)') -> str:
-    """Chat messages or replies, oldest first, grouped by UTC date."""
+    """Chat messages or replies, oldest first, grouped by local date."""
     out: list[str] = []
     day = None
     for msg in sorted(items, key=lambda m: m.get('createdDateTime') or ''):
@@ -220,7 +221,7 @@ def messages(items: list[dict], empty: str = '(no messages)') -> str:
         if this_day != day:
             day = this_day
             out.append(f'## {day}')
-        out.append(_message_block(msg, _stamp(when, '%H:%MZ')))
+        out.append(_message_block(msg, _stamp(when, '%H:%M %Z')))
     return '\n'.join(out) or empty
 
 

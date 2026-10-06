@@ -25,7 +25,7 @@ def _count(value: str) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog='teams-reader', description=__doc__,
-        epilog='Times are UTC. --since accepts 7d, 12h, 30m, 2w, or an ISO date/date-time.')
+        epilog='Times are local (set TZ to change). --since accepts 7d, 12h, 30m, 2w, or an ISO date/date-time.')
     parser.add_argument('--version', action='version', version=f'%(prog)s {__version__}')
     fmt_help = ('json (default): Microsoft Graph objects as returned; md: compact text '
                 'with HTML and system events stripped, to save LLM tokens')

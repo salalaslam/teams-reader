@@ -28,7 +28,7 @@ server = MCPServer(
     instructions=(
         'Read-only access to the signed-in user\'s Microsoft Teams chats and channels. '
         'Start with list_chats or search_messages; use IDs from results in follow-up '
-        'calls. since accepts 7d, 12h, 30m, 2w or an ISO date. Times are UTC. '
+        'calls. since accepts 7d, 12h, 30m, 2w or an ISO date. Times are in the server\'s local timezone. '
         'format="md" (default) is compact text; use "json" for full Graph objects.'),
 )
 

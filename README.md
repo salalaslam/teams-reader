@@ -105,37 +105,39 @@ All read commands accept these options:
   calls, renames) and deleted messages are dropped. On real chats it came out 3 to 16 times
   smaller than the JSON.
 - `--since WHEN` takes a relative time (`30m`, `12h`, `7d`, `2w`) or an ISO date or
-  date-time (`2026-10-01`, `2026-10-01T09:00:00Z`). Times are UTC.
+  date-time (`2026-10-01`, `2026-10-01T09:00:00Z`). A date or date-time without a
+  timezone is local time. Output times are local too, labelled with the zone; set `TZ`
+  (for example `TZ=UTC`) to see another one.
 - `--limit N` (aliases `--top`, `-n`) caps the results. The default is 50 (25 for search);
   `0` means no limit. Results are fetched page by page, and paging stops once the limit or
   the `--since` cut-off is reached, so a small limit is fast even on a long chat.
 
-The examples below use made-up data.
+The examples below use made-up data, shown with `TZ=UTC`.
 
 ```console
 $ teams-reader chats --since 2d -f md
-- 2026-10-02 13:48Z **Launch plan** (group) — Priya Shah: Final checklist is in the channel, please review by Friday
+- 2026-10-02 13:48 UTC **Launch plan** (group) — Priya Shah: Final checklist is in the channel, please review by Friday
   id: 19:3f2a9c1e5b7d4e0f8a6b2c4d1e9f7a3b@thread.v2
-- 2026-10-02 11:38Z **Sam Lee, Alex Doe** (oneOnOne) — Sam Lee: sounds good
+- 2026-10-02 11:38 UTC **Sam Lee, Alex Doe** (oneOnOne) — Sam Lee: sounds good
   id: 19:0b6c...@unq.gbl.spaces
 ```
 
 ```console
 $ teams-reader messages '19:3f2a9c1e5b7d4e0f8a6b2c4d1e9f7a3b@thread.v2' -n 4 -f md
 ## 2026-10-02
-12:41Z Alex Doe: Can we move the demo to Thursday?
-12:45Z Priya Shah: Thursday works. @Sam Lee can you update the invite?
-12:52Z Sam Lee: > replying to Priya Shah: Thursday works. @Sam Lee can you update the invite?
+12:41 UTC Alex Doe: Can we move the demo to Thursday?
+12:45 UTC Priya Shah: Thursday works. @Sam Lee can you update the invite?
+12:52 UTC Sam Lee: > replying to Priya Shah: Thursday works. @Sam Lee can you update the invite?
   Done, and I attached the run sheet
   [file: demo-run-sheet.docx]
-13:48Z Priya Shah: Final checklist is in the channel, please review by Friday
+13:48 UTC Priya Shah: Final checklist is in the channel, please review by Friday
 ```
 
 ```console
 $ teams-reader search budget --since 30d -f md
-- 2026-09-30 16:05Z **Finance / Planning** · Sam Lee: Q4 budget is approved, see the updated sheet...
+- 2026-09-30 16:05 UTC **Finance / Planning** · Sam Lee: Q4 budget is approved, see the updated sheet...
   team: 6f1d... channel: 19:a1b2...@thread.tacv2 message: 1727712300000
-- 2026-09-24 09:12Z chat **Launch plan** · Alex Doe: ...need sign-off on the launch budget before...
+- 2026-09-24 09:12 UTC chat **Launch plan** · Alex Doe: ...need sign-off on the launch budget before...
   chat: 19:3f2a9c1e5b7d4e0f8a6b2c4d1e9f7a3b@thread.v2
 ```
 

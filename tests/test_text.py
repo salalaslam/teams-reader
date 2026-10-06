@@ -14,8 +14,8 @@ NOW = datetime(2026, 10, 5, 12, 0, tzinfo=timezone.utc)
     ('12h', NOW - timedelta(hours=12)),
     ('7d', NOW - timedelta(days=7)),
     ('2W', NOW - timedelta(weeks=2)),
-    ('2026-10-01', datetime(2026, 10, 1, tzinfo=timezone.utc)),
-    ('2026-10-01T09:30', datetime(2026, 10, 1, 9, 30, tzinfo=timezone.utc)),
+    ('2026-10-01', datetime(2026, 9, 30, 19, tzinfo=timezone.utc)),  # local midnight, UTC+5
+    ('2026-10-01T09:30', datetime(2026, 10, 1, 4, 30, tzinfo=timezone.utc)),
     ('2026-10-01T09:30:00Z', datetime(2026, 10, 1, 9, 30, tzinfo=timezone.utc)),
     ('2026-10-01T11:30:00+02:00', datetime(2026, 10, 1, 9, 30, tzinfo=timezone.utc)),
 ])

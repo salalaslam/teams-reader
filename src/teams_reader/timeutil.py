@@ -14,7 +14,7 @@ _DURATION_UNITS = {'s': 'seconds', 'm': 'minutes', 'h': 'hours', 'd': 'days'}
 def parse_since(value: str | None, now: datetime | None = None) -> datetime | None:
     """Parse ``7d``/``12h``/``30m``/``2w`` or an ISO date/date-time into UTC.
 
-    ISO values without a timezone are taken as UTC.
+    ISO values without a timezone are taken as local time.
     """
     if value is None or value == '':
         return None
@@ -48,10 +48,8 @@ def parse_time(value: str) -> datetime:
         text = text[:-1] + '+00:00'
     # Python < 3.11 only accepts 3 or 6 fractional digits; Graph emits 1-7.
     text = _FRACTION.sub(lambda m: '.' + (m.group(1) + '000000')[:6], text, count=1)
-    parsed = datetime.fromisoformat(text)
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+    # astimezone() reads a naive value as local time; Graph always sends Z.
+    return datetime.fromisoformat(text).astimezone(timezone.utc)
 
 
 def item_time(item: dict | None, key: str = 'createdDateTime') -> datetime | None:
