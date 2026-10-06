@@ -165,4 +165,4 @@ def test_cards_with_backslash_line_endings_show_their_text(graph, run):
 
     _, out, _ = run('-f', 'md', 'messages', CHAT)
 
-    assert '[card: PDTS decision / Approve batch 4]' in out
+    assert '[card] PDTS decision\n  Approve batch 4\n' in out

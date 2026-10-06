@@ -128,7 +128,7 @@ def _attachment(att: dict) -> str:
         return f'> {label} {sender}: {preview}'
     if kind == 'application/vnd.microsoft.card.adaptive':
         texts = [t for t in _card_texts(content) if t]
-        return f"[card: {_clip(' / '.join(texts), 300)}]" if texts else '[card]'
+        return '[card] ' + '\n'.join(texts) if texts else '[card]'
     if kind == 'application/vnd.microsoft.card.audio':
         return '[audio]'
     return f"[attachment: {att.get('name') or kind or 'unknown'}]"

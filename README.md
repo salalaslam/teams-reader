@@ -100,10 +100,10 @@ teams-reader status | login | logout
 All read commands accept these options:
 
 - `--format json|md` (`-f`). `json` (the default) returns Microsoft Graph objects as Graph
-  sends them. `md` returns compact text: HTML is stripped, mentions become `@Name`, files,
-  cards and quoted replies become one-line placeholders, and system events (members added,
-  calls, renames) and deleted messages are dropped. On real chats it came out 3 to 16 times
-  smaller than the JSON.
+  sends them. `md` returns compact text: HTML is stripped, mentions become `@Name`, cards
+  keep their text, files and quoted replies become one-line placeholders, and system events
+  (members added, calls, renames) and deleted messages are dropped. On real chats it came
+  out 3 to 16 times smaller than the JSON.
 - `--since WHEN` takes a relative time (`30m`, `12h`, `7d`, `2w`) or an ISO date or
   date-time (`2026-10-01`, `2026-10-01T09:00:00Z`). A date or date-time without a
   timezone is local time. Output times are local too, labelled with the zone; set `TZ`
