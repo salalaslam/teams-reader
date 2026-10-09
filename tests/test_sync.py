@@ -201,6 +201,15 @@ def test_unknown_project_lists_the_known_ones(team, run):
     assert "known: launch" in err
 
 
+def test_project_without_chats_is_an_error_not_every_chat(team, home, run):
+    run('sync')
+    home('[projects.docs]\nrepos = ["~/code/docs"]\n')
+    code, out, err = run('recent', '--project', 'docs')
+    assert code == 2
+    assert "project 'docs' has no chats" in err
+    assert 'old news' not in out
+
+
 def test_wait_returns_replies_from_others_and_ignores_my_own(team, run):
     graph, _ = team
     graph.add(f'/chats/{DM}/messages', [msg('d3', ago(seconds=5), 'done!', sender='Sam Lee'),

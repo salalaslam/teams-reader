@@ -75,7 +75,10 @@ def project_chats(config: dict[str, Any], name: str) -> list[str]:
     if name not in projects:
         known = ', '.join(sorted(projects)) or 'none'
         raise m365.ConfigError(f'unknown project {name!r} in {projects_path()} (known: {known})')
-    return [chat_id(c) for c in projects[name].get('chats') or []]
+    chats = [chat_id(c) for c in projects[name].get('chats') or []]
+    if not chats:
+        raise m365.ConfigError(f'project {name!r} has no chats in {projects_path()}')
+    return chats
 
 
 class LinkError(ValueError):
